@@ -11,15 +11,15 @@
 
 - Nodejs
   - Download: <https://nodejs.org/en/>
-  - Documentação: <https://nodejs.org/en/docs/>
     - Bibliotecas utilizadas
       - Cassandra Driver: <https://www.npmjs.com/package/cassandra-driver>
+  - Documentação: <https://nodejs.org/en/docs/>
 
 - Banco de dados Cassandra
   - Download: <https://cassandra.apache.org/download/>
   - Documentação: <https://cassandra.apache.org/doc/latest/>
 
-## Ações do Projeto
+## Ações da Aplicação
 
 - Conta
   - Efetuar crédito

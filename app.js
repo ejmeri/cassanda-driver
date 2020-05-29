@@ -11,13 +11,13 @@ const client = new cassandra.Client({
 });
 
 
-function Helper(query, params) {
+function Repository(query, params) {
     this.query = query;
     this.params = params;
 }
 
-Helper.prototype.executeQuery = function (query, params) {
-    Helper.call(this, query, params);
+Repository.prototype.executeQuery = function (query, params) {
+    Repository.call(this, query, params);
 
     client.execute(this.query, this.params, { prepare: true })
         .then(_ => { },
@@ -26,9 +26,9 @@ Helper.prototype.executeQuery = function (query, params) {
             });
 }
 
-Helper.prototype.findTransactions = function (account) {
+Repository.prototype.findTransactions = function (account) {
     const query = 'SELECT transactions FROM accounts WHERE agency = ? AND accountNumber = ?';
-    /* params = account */ 
+    /* params = account */
     console.log(`Valor\t|Tipo`);
     client.eachRow(query, account, { prepare: true },
         (n, row) => {
@@ -44,7 +44,7 @@ Helper.prototype.findTransactions = function (account) {
         });
 }
 
-Helper.prototype.findLoans = function (query, params) {
+Repository.prototype.findLoans = function (query, params) {
     console.log(`Parcela\t|Valor\t|Parcela paga?`);
     client.eachRow(query, params, { prepare: true },
         (n, row) => {
@@ -59,7 +59,7 @@ Helper.prototype.findLoans = function (query, params) {
 function Account(agency, accountNumber) {
     this.agency = agency;
     this.accountNumber = accountNumber;
-    this.accountInfo = `Agência: ${this.agency} Conta: ${accountNumber}`;
+    this.info = `Agência: ${this.agency} Conta: ${accountNumber}`;
 }
 
 function Transaction(account, value, type) {
@@ -68,15 +68,22 @@ function Transaction(account, value, type) {
     this.type = type;
 }
 
+function Loan(account, parcelNumber, parcelPaid, value) {
+    Account.call(this, account.agency, account.accountNumber);
+    this.parcelNumber = parcelNumber;
+    this.parcelPaid = parcelPaid;
+    this.value = value;
+}
 
-Transaction.prototype.createTransaction = function (account, value, type) {
+
+Transaction.prototype.createTransaction = function (value, type) {
     if (!account.agency) {
         throw "Agência inválida";
     }
     if (!account.accountNumber) {
         throw "Número da conta inválida";
     }
-    if (!value && value <= 0) {
+    if (!value || value <= 0) {
         throw "Valor inválido";
     }
 
@@ -89,54 +96,39 @@ Transaction.prototype.createTransaction = function (account, value, type) {
         }]
     };
 
-    let helper = new Helper();
+    let repository = new Repository();
     const sql = 'UPDATE accounts SET  transactions = transactions + ? where agency=? and accountnumber=?';
 
-    helper.executeQuery(sql, params);
+    repository.executeQuery(sql, params);
 }
 
-Transaction.prototype.createCredit = function (account, value) {
-    console.log(`Criando transação de crédito: ${account.accountInfo} - Valor R$ ${value}\n`);
-    this.createTransaction(account, value, 'C');
+Transaction.prototype.createCredit = function (value) {
+    console.log(`Criando transação de crédito: ${account.info} - Valor R$ ${value}\n`);
+    this.createTransaction(value, 'C');
 }
 
-Transaction.prototype.createDebit = function (account, value) {
-    console.log(`Criando transação de débito: ${account.accountInfo} - Valor R$ ${value}\n`);    
-    this.createTransaction(account, value, 'D');
+Transaction.prototype.createDebit = function (value) {
+    console.log(`Criando transação de débito: ${account.info} - Valor R$ ${value}\n`);
+    this.createTransaction(value, 'D');
 }
 
 Account.prototype.findExtract = function () {
-    console.log(`Listando movimentaçoes: ${this.accountInfo}`);
-    const helper = new Helper();
-    helper.findTransactions(this);
+    console.log(`Listando movimentaçoes: ${this.info}`);
+    const repository = new Repository();
+    repository.findTransactions(this);
 }
 
-/* Funções disponíveis no projeto */
-
-// Inicializa classes
-const account = new Account(1, 1);
-const transations = new Transaction(account);
-
-// - Efetuar crédito
-//  transations.createCredit(account, 100);
-
-// - Efetuar débito
-// transations.createDebit(account, 10);
-
-// - Visualizar extrato
-account.findExtract();
-
-function registerLoan(agency, accountNumber, loanValue, parcelNumbers) {
-    if (!agency) {
+Loan.prototype.registerLoan = function (parcelNumbers, loanValue) {
+    if (!account.agency) {
         throw "Agência inválida";
     }
-    if (!accountNumber) {
+    if (!account.accountNumber) {
         throw "Número da conta inválida";
     }
-    if (!parcelNumbers && parcelNumbers <= 0) {
+    if (!parcelNumbers || parcelNumbers <= 0) {
         throw "Número de parcelas inválido";
     }
-    if (!loanValue && loanValue <= 0) {
+    if (!loanValue || loanValue <= 0) {
         throw "Valor do empréstimo inválido";
     }
 
@@ -144,71 +136,58 @@ function registerLoan(agency, accountNumber, loanValue, parcelNumbers) {
 
     for (let index = 1; index <= parcelNumbers; index++) {
         let params = {
-            agency: agency,
-            accountNumber: accountNumber,
+            agency: account.agency,
+            accountNumber: account.accountNumber,
             parcelNumber: index,
             parcelValue: parcelValue,
             parcelPaid: 'N'
         };
 
-        let helper = new Helper();
+        let repository = new Repository();
         let sql = 'INSERT INTO loans (agency, accountNumber, parcelNumber, parcelValue, parcelPaid) VALUES (?, ?, ?, ?,?)';
 
-        console.log(`Registrando parcela do empréstimo da conta: ${agency}-${accountNumber} - Parcela ${index} - Valor R$ ${parcelValue}`);
-        helper.executeQuery(sql, params);
+        console.log(`Registrando parcela do empréstimo da conta: ${account.info} - Parcela ${index} - Valor R$ ${parcelValue}`);
+        repository.executeQuery(sql, params);
     }
 
     console.log(`Empréstimo efetuado com sucesso`);
 }
 
-function payParcel(agency, accountNumber, parcelNumber) {
-    if (!agency) {
+Loan.prototype.payParcel = function (parcelNumber) {
+    if (!account.agency) {
         throw "Agência inválida";
     }
-    if (!accountNumber) {
+    if (!account.accountNumber) {
         throw "Número da conta inválida";
     }
     if (!parcelNumber && parcelNumber <= 0) {
         throw "Número da parcela inválido";
     }
 
-
     let params = {
-        agency: agency,
-        accountNumber: accountNumber,
+        agency: account.agency,
+        accountNumber: account.accountNumber,
         parcelNumber: parcelNumber,
     };
 
-    let helper = new Helper();
+    let repository = new Repository();
     let sql = "UPDATE loans SET parcelPaid='S' WHERE agency=? and accountNumber=? and parcelNumber=?";
 
-    console.log(`Registrando pagamento da parcela  ${agency}-${accountNumber} - Parcela ${parcelNumber}`);
-    helper.executeQuery(sql, params);
-
-    console.log(`Parcela paga com sucesso`);
+    console.log(`Registrando pagamento da parcela  ${account.info} - Parcela ${parcelNumber}`);
+    repository.executeQuery(sql, params);
 }
 
-function payParcelsNotPaid(agency, accountNumber) {
-    console.log(`Registrando pagamento do empréstimo da conta ${agency}-${accountNumber}\n`);
+Loan.prototype.payAnyParcel = function (parcelNumber) {
+    this.payParcel(parcelNumber);
+}
 
-    if (!agency) {
-        throw "Agência inválida";
-    }
-    if (!accountNumber) {
-        throw "Número da conta inválida";
-    }
+Loan.prototype.payLoan = function () {
+    console.log(`Registrando pagamento do empréstimo da conta ${account.info}\n`);
 
-    const params = {
-        agency: agency,
-        accountNumber: accountNumber,
-    };
-
-    let helper = new Helper();
     const query = "SELECT agency, accountnumber, parcelnumber FROM loans WHERE agency = ? AND accountNumber = ? and parcelPaid='N' ALLOW FILTERING";
-
-    client.eachRow(query, params, { prepare: true },
+    client.eachRow(query, account, { prepare: true },
         (n, row) => {
-            payParcel(row.agency, row.accountnumber, row.parcelnumber);
+            this.payParcel(row.parcelnumber);
         }, (err) => {
             if (err) {
                 return console.log(`erro efetuar consulta: ${err}`);
@@ -217,35 +196,48 @@ function payParcelsNotPaid(agency, accountNumber) {
         });
 }
 
-function extractLoan(agency, accountNumber) {
-    if (!agency) {
+Account.prototype.extractLoan = function () {
+    if (!account.agency) {
         throw "Agência inválida";
     }
-    if (!accountNumber) {
+    if (!account.accountNumber) {
         throw "Número da conta inválida";
     }
 
-    const params = {
-        agency: agency,
-        accountNumber: accountNumber,
-    };
-
-    let helper = new Helper();
+    let repository = new Repository();
     const sql = 'SELECT parcelNumber, parcelValue, parcelPaid FROM loans WHERE agency = ? AND accountNumber = ?';
 
-    console.log(`Listando empréstimos da conta: ${agency}-${accountNumber}`);
-    helper.findLoans(sql, params);
+    console.log(`Listando empréstimos da conta: ${account.info}\n`);
+    repository.findLoans(sql, account);
 
 }
 
+
+/* Funções disponíveis na aplicação */
+
+// Inicializa classes
+const account = new Account(123, 456);
+const transations = new Transaction(account);
+const loans = new Loan(account);
+
+
+// - Efetuar crédito
+// transations.createCredit(100);
+
+// - Efetuar débito
+// transations.createDebit(30);
+
 // - Registrar empréstimo
-// registerLoan(1, 3, 300, 5);
+// loans.registerLoan(5, 500);
 
 // - Efetuar pagamento de uma parcela
-// payParcel(1, 1, 1);
+// loans.payAnyParcel(1);
 
 // - Efetuar pagamento do empréstimo
-// payParcelsNotPaid(1, 2);
+// loans.payLoan();
 
-// - Visualizar extrato do empréstimo
-// extractLoan(1, 3);
+// - Visualizar extrato da conta
+// account.findExtract();
+
+// - Visualizar extrato de empréstimo
+account.extractLoan();
