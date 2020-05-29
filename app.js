@@ -32,7 +32,11 @@ Helper.prototype.findTransactions = function (query, params) {
     console.log(`Tipo\t|Valor`);
     client.eachRow(this.query, this.params, { prepare: true },
         (n, row) => {
-            console.log(row.type + "\t|R$ " + row.value);
+            if (row.transactions) {
+                for (const transactions of row.transactions) {
+                    console.log(transactions.type + "\t|R$ " + transactions.value);
+                }
+            }
         }, (err) => {
             if (err) {
                 console.log(`erro efetuar consulta: ${err}`);
@@ -70,12 +74,14 @@ function credit(agency, accountNumber, value) {
     const params = {
         agency: agency,
         accountNumber: accountNumber,
-        type: 'C',
-        value: value
+        transactions: [{
+            type: 'C',
+            value: value
+        }]
     };
 
     let helper = new Helper();
-    const sql = 'INSERT INTO transactions (agency, accountNumber, type, value) VALUES (?, ?, ?, ?)';
+    const sql = 'UPDATE accounts SET  transactions = transactions + ? where agency=? and accountnumber=?';
 
     helper.executeQuery(sql, params);
 }
@@ -94,14 +100,16 @@ function debit(agency, accountNumber, value) {
     }
 
     const params = {
-        type: 'D',
-        value: value,
         agency: agency,
         accountNumber: accountNumber,
+        transactions: [{
+            type: 'D',
+            value: value
+        }]
     };
 
     let helper = new Helper();
-    const sql = 'INSERT INTO transactions (agency, accountNumber, type, value) VALUES (?, ?, ?, ?)';
+    const sql = 'UPDATE accounts SET  transactions = transactions + ? where agency=? and accountnumber=?';
 
     helper.executeQuery(sql, params);
 }
@@ -121,7 +129,7 @@ function extract(agency, accountNumber) {
     };
 
     let helper = new Helper();
-    const sql = 'SELECT value, type FROM transactions WHERE agency = ? AND accountNumber = ?';
+    const sql = 'SELECT transactions FROM accounts WHERE agency = ? AND accountNumber = ?';
 
     console.log(`Listando movimentaçoes da conta: ${agency}-${accountNumber}`);
 
@@ -217,7 +225,6 @@ function payParcelsNotPaid(agency, accountNumber) {
                 return console.log(`erro efetuar consulta: ${err}`);
             }
             return console.log(`Empréstimo quitado com sucesso`);
-            
         });
 }
 
@@ -242,15 +249,16 @@ function extractLoan(agency, accountNumber) {
 
 }
 
+/* Funções disponíveis no projeto */ 
 
 // - Efetuar crédito
-// credit(1, 2, 225);
+// credit(1, 1, 100);
 
 // - Efetuar débito
-// debit(1, 2, 10);
+// debit(1, 1, 10);
 
 // - Visualizar extrato
-// extract(1, 2);
+// extract(1, 1);
 
 // - Registrar empréstimo
 // registerLoan(1, 3, 300, 5);
