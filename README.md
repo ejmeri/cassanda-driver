@@ -36,8 +36,8 @@
 - Efetuar débito
 - Visualizar extrato
 - Registrar empréstimo
-- Efetuar pagamento do empréstimo
 - Efetuar pagamento de uma parcela do empréstimo
+- Efetuar pagamento do empréstimo
 - Visualizar extrato do empréstimo
 
 ## Tecnologias usadas

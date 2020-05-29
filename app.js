@@ -10,12 +10,6 @@ const client = new cassandra.Client({
     keyspace: 'bank'
 });
 
-// const client = new cassandra.Client({
-//     accountNumberctPoints: ['localhost'],
-//     localDataCenter: 'datacenter1',
-//     keyspace: 'banco'
-// });
-
 
 function Helper(query, params) {
     this.query = query;
@@ -35,10 +29,10 @@ Helper.prototype.executeQuery = function (query, params) {
 Helper.prototype.findTransactions = function (query, params) {
     Helper.call(this, query, params);
 
-    console.log(`Tipo\t|\tValor`);
+    console.log(`Tipo\t|Valor`);
     client.eachRow(this.query, this.params, { prepare: true },
         (n, row) => {
-            console.log(row.type + "\t|\tR$ " + row.value);
+            console.log(row.type + "\t|R$ " + row.value);
         }, (err) => {
             if (err) {
                 console.log(`erro efetuar consulta: ${err}`);
@@ -49,10 +43,10 @@ Helper.prototype.findTransactions = function (query, params) {
 Helper.prototype.findLoans = function (query, params) {
     Helper.call(this, query, params);
 
-    console.log(`Parcela\t|\tValor\t|\tStatus do pagamento`);
+    console.log(`Parcela\t|Valor\t|Parcela paga?`);
     client.eachRow(this.query, this.params, { prepare: true },
         (n, row) => {
-            console.log(row.parcelnumber + "\t|\tR$ " + row.parcelvalue + "\t|\t" + row.parcelpaid);
+            console.log(row.parcelnumber + "\t|R$ " + row.parcelvalue + "\t|" + row.parcelpaid);
         }, (err) => {
             if (err) {
                 console.log(`erro efetuar consulta: ${err}`);
@@ -193,11 +187,13 @@ function payParcel(agency, accountNumber, parcelNumber) {
     console.log(`Registrando pagamento da parcela na conta ${agency}-${accountNumber} - Parcela ${parcelNumber}`);
     helper.executeQuery(sql, params);
 
-    console.log(`Empréstimo efetuado com sucesso`);
+    console.log(`Parcela paga com sucesso`);
 }
 
 
 function payParcelsNotPaid(agency, accountNumber) {
+    console.log(`Registrando pagamento do empréstimo da conta ${agency}-${accountNumber}\n`);
+
     if (!agency) {
         throw "Agência inválida";
     }
@@ -205,24 +201,24 @@ function payParcelsNotPaid(agency, accountNumber) {
         throw "Número da conta inválida";
     }
 
-
-    let params = {
+    const params = {
         agency: agency,
-        accountNumber: accountNumber
+        accountNumber: accountNumber,
     };
 
     let helper = new Helper();
-    let sql = `UPDATE loans 
-               SET parcelPaid='S'
-               WHERE 
-               agency=? AND 
-               accountNumber=? AND
-               parcelNumber > 0
-               IF parcelPaid='N';`;
-               
+    const query = "SELECT agency, accountnumber, parcelnumber FROM loans WHERE agency = ? AND accountNumber = ? and parcelPaid='N' ALLOW FILTERING";
 
-    console.log(`Registrando pagamento do empréstimo da conta ${agency}-${accountNumber}`);
-    helper.executeQuery(sql, params);
+    client.eachRow(query, params, { prepare: true },
+        (n, row) => {
+            payParcel(row.agency, row.accountnumber, row.parcelnumber);
+        }, (err) => {
+            if (err) {
+                return console.log(`erro efetuar consulta: ${err}`);
+            }
+            return console.log(`Empréstimo quitado com sucesso`);
+            
+        });
 }
 
 function extractLoan(agency, accountNumber) {
@@ -242,16 +238,28 @@ function extractLoan(agency, accountNumber) {
     const sql = 'SELECT parcelNumber, parcelValue, parcelPaid FROM loans WHERE agency = ? AND accountNumber = ?';
 
     console.log(`Listando empréstimos da conta: ${agency}-${accountNumber}`);
-
     helper.findLoans(sql, params);
 
 }
 
 
+// - Efetuar crédito
 // credit(1, 2, 225);
+
+// - Efetuar débito
 // debit(1, 2, 10);
+
+// - Visualizar extrato
 // extract(1, 2);
-// registerLoan(1, 1, 10, 5);
+
+// - Registrar empréstimo
+// registerLoan(1, 3, 300, 5);
+
+// - Efetuar pagamento de uma parcela
 // payParcel(1, 1, 1);
-payParcelsNotPaid(1,1);
-// extractLoan(1, 1);
+
+// - Efetuar pagamento do empréstimo
+// payParcelsNotPaid(1, 2);
+
+// - Visualizar extrato do empréstimo
+// extractLoan(1, 3);
