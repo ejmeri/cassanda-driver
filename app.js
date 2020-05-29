@@ -26,15 +26,15 @@ Helper.prototype.executeQuery = function (query, params) {
             });
 }
 
-Helper.prototype.findTransactions = function (query, params) {
-    Helper.call(this, query, params);
-
-    console.log(`Tipo\t|Valor`);
-    client.eachRow(this.query, this.params, { prepare: true },
+Helper.prototype.findTransactions = function (account) {
+    const query = 'SELECT transactions FROM accounts WHERE agency = ? AND accountNumber = ?';
+    /* params = account */ 
+    console.log(`Valor\t|Tipo`);
+    client.eachRow(query, account, { prepare: true },
         (n, row) => {
             if (row.transactions) {
                 for (const transactions of row.transactions) {
-                    console.log(transactions.type + "\t|R$ " + transactions.value);
+                    console.log(`R$ ${transactions.value} \t|${transactions.type}`);
                 }
             }
         }, (err) => {
@@ -45,10 +45,8 @@ Helper.prototype.findTransactions = function (query, params) {
 }
 
 Helper.prototype.findLoans = function (query, params) {
-    Helper.call(this, query, params);
-
     console.log(`Parcela\t|Valor\t|Parcela paga?`);
-    client.eachRow(this.query, this.params, { prepare: true },
+    client.eachRow(query, params, { prepare: true },
         (n, row) => {
             console.log(row.parcelnumber + "\t|R$ " + row.parcelvalue + "\t|" + row.parcelpaid);
         }, (err) => {
@@ -58,13 +56,24 @@ Helper.prototype.findLoans = function (query, params) {
         });
 }
 
-function credit(agency, accountNumber, value) {
-    console.log(`Crédito na conta: ${agency}-${accountNumber} - Valor R$ ${value}\n`);
+function Account(agency, accountNumber) {
+    this.agency = agency;
+    this.accountNumber = accountNumber;
+    this.accountInfo = `Agência: ${this.agency} Conta: ${accountNumber}`;
+}
 
-    if (!agency) {
+function Transaction(account, value, type) {
+    Account.call(this, account.agency, account.accountNumber);
+    this.value = value;
+    this.type = type;
+}
+
+
+Transaction.prototype.createTransaction = function (account, value, type) {
+    if (!account.agency) {
         throw "Agência inválida";
     }
-    if (!accountNumber) {
+    if (!account.accountNumber) {
         throw "Número da conta inválida";
     }
     if (!value && value <= 0) {
@@ -72,10 +81,10 @@ function credit(agency, accountNumber, value) {
     }
 
     const params = {
-        agency: agency,
-        accountNumber: accountNumber,
+        agency: account.agency,
+        accountNumber: account.accountNumber,
         transactions: [{
-            type: 'C',
+            type: type,
             value: value
         }]
     };
@@ -86,55 +95,36 @@ function credit(agency, accountNumber, value) {
     helper.executeQuery(sql, params);
 }
 
-function debit(agency, accountNumber, value) {
-    console.log(`Débito na conta: ${agency}-${accountNumber} - Valor R$ ${value}\n`);
-
-    if (!agency) {
-        throw "Agência inválida";
-    }
-    if (!accountNumber) {
-        throw "Número da conta inválida";
-    }
-    if (!value && value <= 0) {
-        throw "Valor inválido";
-    }
-
-    const params = {
-        agency: agency,
-        accountNumber: accountNumber,
-        transactions: [{
-            type: 'D',
-            value: value
-        }]
-    };
-
-    let helper = new Helper();
-    const sql = 'UPDATE accounts SET  transactions = transactions + ? where agency=? and accountnumber=?';
-
-    helper.executeQuery(sql, params);
+Transaction.prototype.createCredit = function (account, value) {
+    console.log(`Criando transação de crédito: ${account.accountInfo} - Valor R$ ${value}\n`);
+    this.createTransaction(account, value, 'C');
 }
 
-
-function extract(agency, accountNumber) {
-    if (!agency) {
-        throw "Agência inválida";
-    }
-    if (!accountNumber) {
-        throw "Número da conta inválida";
-    }
-
-    const params = {
-        agency: agency,
-        accountNumber: accountNumber,
-    };
-
-    let helper = new Helper();
-    const sql = 'SELECT transactions FROM accounts WHERE agency = ? AND accountNumber = ?';
-
-    console.log(`Listando movimentaçoes da conta: ${agency}-${accountNumber}`);
-
-    helper.findTransactions(sql, params);
+Transaction.prototype.createDebit = function (account, value) {
+    console.log(`Criando transação de débito: ${account.accountInfo} - Valor R$ ${value}\n`);    
+    this.createTransaction(account, value, 'D');
 }
+
+Account.prototype.findExtract = function () {
+    console.log(`Listando movimentaçoes: ${this.accountInfo}`);
+    const helper = new Helper();
+    helper.findTransactions(this);
+}
+
+/* Funções disponíveis no projeto */
+
+// Inicializa classes
+const account = new Account(1, 1);
+const transations = new Transaction(account);
+
+// - Efetuar crédito
+//  transations.createCredit(account, 100);
+
+// - Efetuar débito
+// transations.createDebit(account, 10);
+
+// - Visualizar extrato
+account.findExtract();
 
 function registerLoan(agency, accountNumber, loanValue, parcelNumbers) {
     if (!agency) {
@@ -164,7 +154,7 @@ function registerLoan(agency, accountNumber, loanValue, parcelNumbers) {
         let helper = new Helper();
         let sql = 'INSERT INTO loans (agency, accountNumber, parcelNumber, parcelValue, parcelPaid) VALUES (?, ?, ?, ?,?)';
 
-        console.log(`Registrando parcela do empréstimo na conta ${agency}-${accountNumber} - Parcela ${index} - Valor R$ ${parcelValue}`);
+        console.log(`Registrando parcela do empréstimo da conta: ${agency}-${accountNumber} - Parcela ${index} - Valor R$ ${parcelValue}`);
         helper.executeQuery(sql, params);
     }
 
@@ -192,12 +182,11 @@ function payParcel(agency, accountNumber, parcelNumber) {
     let helper = new Helper();
     let sql = "UPDATE loans SET parcelPaid='S' WHERE agency=? and accountNumber=? and parcelNumber=?";
 
-    console.log(`Registrando pagamento da parcela na conta ${agency}-${accountNumber} - Parcela ${parcelNumber}`);
+    console.log(`Registrando pagamento da parcela  ${agency}-${accountNumber} - Parcela ${parcelNumber}`);
     helper.executeQuery(sql, params);
 
     console.log(`Parcela paga com sucesso`);
 }
-
 
 function payParcelsNotPaid(agency, accountNumber) {
     console.log(`Registrando pagamento do empréstimo da conta ${agency}-${accountNumber}\n`);
@@ -248,17 +237,6 @@ function extractLoan(agency, accountNumber) {
     helper.findLoans(sql, params);
 
 }
-
-/* Funções disponíveis no projeto */ 
-
-// - Efetuar crédito
-// credit(1, 1, 100);
-
-// - Efetuar débito
-// debit(1, 1, 10);
-
-// - Visualizar extrato
-// extract(1, 1);
 
 // - Registrar empréstimo
 // registerLoan(1, 3, 300, 5);
