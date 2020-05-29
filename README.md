@@ -73,11 +73,11 @@
 
 ## Crie a instância da conta
 
-- Parametro1 - {agency} - Agência
+- Parametro - {agency} - Agência - Obrigatório
 
   - Exemplo: 123
 
-- Parametro2 - {accountNumber} - Número da conta
+- Parametro - {accountNumber} - Número da conta - Obrigatório
 
   - Exemplo: 456
 
@@ -93,7 +93,7 @@ Crie a instância de uma transação passando a conta desejada
 
 - Exemplo de crédito
 
-  - Parametro - {value} -  Valor da transação
+  - Parametro - {value} -  Valor da transação - Obrigatório
 
 `transacions.createCredit(20);`
 

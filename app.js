@@ -44,7 +44,9 @@ Repository.prototype.findTransactions = function (account) {
         });
 }
 
-Repository.prototype.findLoans = function (query, params) {
+Repository.prototype.findLoans = function (params) {
+    const query = 'SELECT parcelNumber, parcelValue, parcelPaid FROM loans WHERE agency = ? AND accountNumber = ?';
+
     console.log(`Parcela\t|Valor\t|Parcela paga?`);
     client.eachRow(query, params, { prepare: true },
         (n, row) => {
@@ -62,6 +64,15 @@ function Account(agency, accountNumber) {
     this.info = `Agência: ${this.agency} Conta: ${accountNumber}`;
 }
 
+Account.prototype.validate = function () {
+    if (!this.agency) {
+        throw 'Agência inválida';
+    }
+    if (!this.accountNumber) {
+        throw 'Número da conta inválido'
+    }
+}
+
 function Transaction(account, value, type) {
     Account.call(this, account.agency, account.accountNumber);
     this.value = value;
@@ -77,15 +88,7 @@ function Loan(account, parcelNumber, parcelPaid, value) {
 
 
 Transaction.prototype.createTransaction = function (value, type) {
-    if (!account.agency) {
-        throw "Agência inválida";
-    }
-    if (!account.accountNumber) {
-        throw "Número da conta inválida";
-    }
-    if (!value || value <= 0) {
-        throw "Valor inválido";
-    }
+    account.validate();
 
     const params = {
         agency: account.agency,
@@ -113,18 +116,16 @@ Transaction.prototype.createDebit = function (value) {
 }
 
 Account.prototype.findExtract = function () {
+    account.validate();
+
     console.log(`Listando movimentaçoes: ${this.info}`);
     const repository = new Repository();
     repository.findTransactions(this);
 }
 
 Loan.prototype.registerLoan = function (parcelNumbers, loanValue) {
-    if (!account.agency) {
-        throw "Agência inválida";
-    }
-    if (!account.accountNumber) {
-        throw "Número da conta inválida";
-    }
+    account.validate();
+
     if (!parcelNumbers || parcelNumbers <= 0) {
         throw "Número de parcelas inválido";
     }
@@ -154,12 +155,8 @@ Loan.prototype.registerLoan = function (parcelNumbers, loanValue) {
 }
 
 Loan.prototype.payParcel = function (parcelNumber) {
-    if (!account.agency) {
-        throw "Agência inválida";
-    }
-    if (!account.accountNumber) {
-        throw "Número da conta inválida";
-    }
+    account.validate();
+
     if (!parcelNumber && parcelNumber <= 0) {
         throw "Número da parcela inválido";
     }
@@ -182,6 +179,7 @@ Loan.prototype.payAnyParcel = function (parcelNumber) {
 }
 
 Loan.prototype.payLoan = function () {
+    account.validate();
     console.log(`Registrando pagamento do empréstimo da conta ${account.info}\n`);
 
     const query = "SELECT agency, accountnumber, parcelnumber FROM loans WHERE agency = ? AND accountNumber = ? and parcelPaid='N' ALLOW FILTERING";
@@ -197,18 +195,12 @@ Loan.prototype.payLoan = function () {
 }
 
 Account.prototype.extractLoan = function () {
-    if (!account.agency) {
-        throw "Agência inválida";
-    }
-    if (!account.accountNumber) {
-        throw "Número da conta inválida";
-    }
+    account.validate();
 
     let repository = new Repository();
-    const sql = 'SELECT parcelNumber, parcelValue, parcelPaid FROM loans WHERE agency = ? AND accountNumber = ?';
 
     console.log(`Listando empréstimos da conta: ${account.info}\n`);
-    repository.findLoans(sql, account);
+    repository.findLoans(this);
 
 }
 
