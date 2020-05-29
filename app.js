@@ -240,4 +240,4 @@ const loans = new Loan(account);
 // account.findExtract();
 
 // - Visualizar extrato de empréstimo
-account.extractLoan();
+// account.extractLoan();
