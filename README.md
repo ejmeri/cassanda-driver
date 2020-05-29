@@ -64,3 +64,43 @@
         parcelPaid text,    
         PRIMARY KEY (agency, accountNumber, parcelNumber)
     );
+
+# Instruções de uso
+
+## Instalando as dependências
+
+    npm install
+
+## Crie a instância da conta
+
+- Parametro1 - {agency} - Agência
+
+  - Exemplo: 123
+
+- Parametro2 - {accountNumber} - Número da conta
+
+  - Exemplo: 456
+
+ `var account = new Account(123, 456);`
+
+## Selecione a função desejada
+
+- Caso seja uma transação:
+
+Crie a instância de uma transação passando a conta desejada
+
+ `var transactions = new Transaction(account);`
+
+- Exemplo de crédito
+
+  - Parametro - {value} -  Valor da transação
+
+`transacions.createCredit(20);`
+
+- Execute o comando:
+
+`node app`
+  
+Saída:
+
+    Criando transação de crédito: Agência: 123 Conta: 456 - Valor R$ 20`);
