@@ -24,13 +24,13 @@
 - Conta
   - Efetuar crédito
   - Efetuar débito
-  - Visualizar extrato
+  - Visualizar saldo e extrato
 
 - Empréstimo
   - Registrar empréstimo
   - Efetuar pagamento de uma parcela do empréstimo
   - Efetuar pagamento do empréstimo
-  - Visualizar extrato do empréstimo
+  - Visualizar saldo e extrato do empréstimo
 
 ## Criando workspace no cassandra
 
