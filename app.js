@@ -206,7 +206,7 @@ Loan.prototype.payLoan = function () {
     const query = "SELECT agency, accountnumber, parcelnumber FROM loans WHERE agency = ? AND accountNumber = ? and parcelPaid='N' ALLOW FILTERING";
     client.eachRow(query, account, { prepare: true },
         (n, row) => {
-            this.payAnyParcel(row.parcelnumber);
+            this.payParcel(row.parcelnumber);
         }, (err) => {
             if (err) {
                 return console.log(`erro efetuar consulta: ${err}`);
@@ -251,4 +251,4 @@ const loans = new Loan(account);
 // account.findExtract();
 
 // - Visualizar extrato de empréstimo
-account.extractLoan(); 
+// account.extractLoan(); 
