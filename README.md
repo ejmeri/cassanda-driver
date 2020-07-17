@@ -36,7 +36,7 @@
 
     CREATE KEYSPACE bank WITH replication= {'class': 'SimpleStrategy', 'replication_factor': 1};
 
-## Scripts para a criação das tabelas e types utilizados
+## Scripts para criação das tabelas e types utilizados
 
     - Transações
 
